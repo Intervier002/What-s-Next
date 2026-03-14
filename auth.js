@@ -1,4 +1,4 @@
-const { admin } = require('../firebase');
+const { admin } = require('./firebase');
 
 async function verifyToken(req, res, next) {
   const authHeader = req.headers.authorization;
@@ -11,7 +11,7 @@ async function verifyToken(req, res, next) {
 
   try {
     const decoded = await admin.auth().verifyIdToken(token);
-    req.user = decoded; // attach user to request
+    req.user = decoded;
     next();
   } catch (err) {
     return res.status(401).json({ error: 'Unauthorized — invalid or expired token' });
