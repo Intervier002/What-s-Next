@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet"/>
+<script>
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        colors: {
+          primary:        "#58CC02",
+          "primary-dark": "#46A302",
+          "primary-light":"#D7F5B1",
+          danger:         "#FF4B4B",
+          warning:        "#FFC800",
+          neutral:        "#F7F7F7",
+          "text-main":    "#3C3C3C",
+          "text-soft":    "#8C8C8C",
+          "border-col":   "#E5E5E5",
+        },
+        fontFamily: { display: ["Nunito"] },
+        borderRadius: { xl:"16px", "2xl":"20px", "3xl":"28px" },
+        boxShadow: {
+          btn:        "0 4px 0 0 #46A302",
+          "btn-gray": "0 4px 0 0 #CBCBCB",
+          card:       "0 2px 0 0 #E5E5E5",
+        }
+      }
+    }
+  }
+</script>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: 'Nunito', sans-serif; background:#fff; color:#3C3C3C; }
+  .screen { display:none; min-height:100dvh; flex-direction:column; }
+  .screen.active { display:flex; }
+
+  @keyframes fadeUp {
+    from { opacity:0; transform:translateY(12px); }
+    to   { opacity:1; transform:translateY(0); }
+  }
+  .fade-up { animation: fadeUp 0.28s ease forwards; }
+
+  .btn-press { position:relative; transition:transform 0.1s, top 0.1s; top:0; }
+  .btn-press:active { top:4px; }
+
+  .progress-bar-fill { transition: width 0.4s cubic-bezier(.4,0,.2,1); }
+
+  .sel-pill {
+    border:2px solid #E5E5E5; border-radius:16px; padding:10px 20px;
+    font-size:15px; font-weight:700; cursor:pointer;
+    transition:border-color 0.15s, background 0.15s, color 0.15s;
+    background:#fff; color:#3C3C3C; user-select:none;
+  }
+  .sel-pill:hover { border-color:#58CC02; color:#46A302; }
+  .sel-pill.active { border-color:#58CC02; background:#D7F5B1; color:#46A302; }
+
+  .goal-item {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 18px; border:2px solid #E5E5E5; border-radius:16px;
+    background:#fff; animation:fadeUp 0.2s ease forwards;
+  }
+
+  .wn-input {
+    width:100%; border:2px solid #E5E5E5; border-radius:16px;
+    padding:14px 18px; font-size:16px; font-family:'Nunito',sans-serif;
+    font-weight:600; outline:none; transition:border-color 0.15s; color:#3C3C3C;
+  }
+  .wn-input::placeholder { color:#AFAFAF; font-weight:600; }
+  .wn-input:focus { border-color:#58CC02; }
+
+  .action-card {
+    border:2px solid #E5E5E5; border-radius:20px; padding:28px 24px;
+    background:#fff; box-shadow:0 2px 0 0 #E5E5E5;
+  }
+
+  .streak-badge {
+    display:inline-flex; align-items:center; gap:6px;
+    background:#FFF8E6; border:2px solid #FFC800;
+    border-radius:999px; padding:6px 14px;
+    font-size:14px; font-weight:800; color:#CC9A00;
+  }
+
+  /* Google button */
+  .btn-google {
+    display:flex; align-items:center; justify-content:center; gap:12px;
+    width:100%; padding:14px 24px; border-radius:16px;
+    border:2px solid #E5E5E5; background:#fff;
+    font-family:'Nunito',sans-serif; font-size:16px; font-weight:800;
+    color:#3C3C3C; cursor:pointer;
+    transition:background 0.15s, border-color 0.15s, transform 0.1s;
+    box-shadow: 0 4px 0 0 #CBCBCB;
+    position:relative; top:0;
+  }
+  .btn-google:hover { background:#F7F7F7; border-color:#CBCBCB; }
+  .btn-google:active { top:4px; box-shadow:none; }
+
+  #toast {
+    position:fixed; bottom:24px; left:50%;
+    transform:translateX(-50%) translateY(60px);
+    background:#3C3C3C; color:#fff; font-weight:700; font-size:14px;
+    padding:12px 22px; border-radius:999px; z-index:100;
+    transition:transform 0.3s ease, opacity 0.3s ease;
+    opacity:0; white-space:nowrap; pointer-events:none;
+  }
+  #toast.show { transform:translateX(-50%) translateY(0); opacity:1; }
+
+  /* Loading overlay */
+  #loading {
+    position:fixed; inset:0; background:#fff;
+    display:flex; align-items:center; justify-content:center;
+    z-index:999; flex-direction:column; gap:16px;
+  }
+  .spinner {
+    width:40px; height:40px; border:4px solid #E5E5E5;
+    border-top-color:#58CC02; border-radius:50%;
+    animation:spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform:rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loading">
+  <div class="spinner"></div>
+  <p style="font-family:'Nunito',sans-serif;font-weight:700;color:#8C8C8C;font-size:15px;">Loading...</p>
+</div>
+
+<!-- ════════════════════════════════
+     SCREEN: LOGIN
+════════════════════════════════ -->
+<div class="screen" id="screen-login">
+  <div class="flex-1 flex flex-col items-center justify-center px-6 pb-10">
+    <div class="w-full max-w-sm fade-up">
+
+      <div class="mb-10 text-center">
+        <div class="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-primary-light mb-5">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
+            <path d="M9 12l2 2 4-4" stroke="#58CC02" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="12" cy="12" r="9" stroke="#58CC02" stroke-width="2.5"/>
+          </svg>
+        </div>
+        <h1 class="text-4xl font-black text-text-main mb-2">What Next?</h1>
+        <p class="text-text-soft font-600 text-base">One action. Right now.</p>
+      </div>
+
+      <!-- Google Sign In -->
+      <button class="btn-google mb-4" onclick="signInWithGoogle()">
+        <svg width="22" height="22" viewBox="0 0 24 24">
+          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+          <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+        </svg>
+        Continue with Google
+      </button>
+
+      <div id="login-error" class="hidden text-danger text-sm font-700 text-center py-2 bg-red-50 rounded-xl px-4"></div>
+
+      <p class="text-center text-xs text-text-soft font-600 mt-6 leading-relaxed">
+        By continuing, you agree to our terms.<br/>Your data is saved securely to your account.
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════
+     SCREEN: SETUP
+════════════════════════════════ -->
+<div class="screen" id="screen-setup">
+  <div class="px-6 pt-6 pb-2 shrink-0">
+    <div class="max-w-lg mx-auto flex items-center gap-3">
+      <div class="flex-1 bg-neutral rounded-full h-4 overflow-hidden">
+        <div class="progress-bar-fill bg-primary h-4 rounded-full" style="width:33%"></div>
+      </div>
+    </div>
+  </div>
+
+  <main class="flex-1 overflow-y-auto px-6 pb-36">
+    <div class="max-w-lg mx-auto fade-up pt-8">
+      <h1 class="text-3xl font-black text-text-main mb-3 leading-tight">What are you working toward?</h1>
+      <p class="text-text-soft font-600 text-base mb-8">Add up to 5 goals. The more specific, the better.</p>
+
+      <div class="flex gap-3 mb-8">
+        <input id="goal-input" type="text" class="wn-input" placeholder="e.g. Launch my side project" maxlength="60"/>
+        <button onclick="addGoal()" class="btn-press bg-primary text-white font-900 px-5 rounded-2xl shadow-btn hover:bg-primary-dark transition-colors shrink-0">
+          Add
+        </button>
+      </div>
+
+      <div class="mb-8">
+        <p class="text-xs font-800 uppercase tracking-wider text-text-soft mb-3">Quick add</p>
+        <div class="flex flex-wrap gap-2">
+          <button class="sel-pill" onclick="addPreset(this,'Launch a side project')">Side project</button>
+          <button class="sel-pill" onclick="addPreset(this,'Get healthier')">Get healthier</button>
+          <button class="sel-pill" onclick="addPreset(this,'Learn something new')">Learn something</button>
+          <button class="sel-pill" onclick="addPreset(this,'Clear mental clutter')">Clear my head</button>
+          <button class="sel-pill" onclick="addPreset(this,'Grow professionally')">Grow career</button>
+        </div>
+      </div>
+
+      <div id="goals-empty" class="flex flex-col items-center justify-center py-10 border-2 border-dashed border-border-col rounded-2xl text-center">
+        <p class="text-text-soft font-700 text-base">Your goals will appear here</p>
+        <p class="text-text-soft font-600 text-sm mt-1" id="goal-count-label">0 / 5 added</p>
+      </div>
+      <div id="goals-list" class="hidden space-y-3"></div>
+    </div>
+  </main>
+
+  <div class="fixed bottom-0 left-0 right-0 bg-white border-t-2 border-border-col px-6 py-5">
+    <div class="max-w-lg mx-auto">
+      <button id="setup-cta" onclick="finishSetup()" disabled
+        class="btn-press w-full bg-primary text-white font-900 text-lg py-4 rounded-2xl shadow-btn opacity-40 cursor-not-allowed transition-opacity">
+        Continue
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════
+     SCREEN: HOME
+════════════════════════════════ -->
+<div class="screen" id="screen-home">
+  <div class="px-6 pt-6 pb-2 shrink-0">
+    <div class="max-w-lg mx-auto flex items-center gap-3">
+      <div class="flex-1 bg-neutral rounded-full h-4 overflow-hidden">
+        <div class="progress-bar-fill bg-primary h-4 rounded-full" style="width:66%"></div>
+      </div>
+      <div id="nav-streak" class="hidden">
+        <div class="streak-badge">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="#FFC800"><path d="M12 2c-.5 2.5-2 4.5-4 6 .5-2-1-4-2-5C4 6 3 10 5 13c-1-.5-2-1.5-2-3C2 14 5 19 12 22c7-3 10-8 10-12 0 0-2 2-4 2 2-2 2-6 0-8-1 2-3 3-6-2z"/></svg>
+          <span id="nav-streak-num">0</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <main class="flex-1 overflow-y-auto px-6 pb-36">
+    <div class="max-w-lg mx-auto fade-up pt-6">
+
+      <!-- User greeting -->
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <p class="text-text-soft font-600 text-sm" id="home-greeting">Good morning</p>
+          <p class="font-900 text-xl text-text-main" id="home-username">Hey there</p>
+        </div>
+        <button onclick="handleLogout()" class="text-xs text-text-soft font-700 border-2 border-border-col px-3 py-1.5 rounded-xl hover:border-danger hover:text-danger transition-colors">
+          Sign out
+        </button>
+      </div>
+
+      <!-- Streak banner -->
+      <div id="streak-banner" class="hidden mb-8 p-5 rounded-2xl border-2 border-warning bg-yellow-50">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="font-900 text-lg text-text-main" id="streak-banner-num">5 day streak</p>
+            <p class="text-text-soft font-600 text-sm" id="streak-banner-sub">Keep it going today</p>
+          </div>
+          <div class="w-12 h-12 rounded-xl bg-warning/20 flex items-center justify-center">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="#FFC800"><path d="M12 2c-.5 2.5-2 4.5-4 6 .5-2-1-4-2-5C4 6 3 10 5 13c-1-.5-2-1.5-2-3C2 14 5 19 12 22c7-3 10-8 10-12 0 0-2 2-4 2 2-2 2-6 0-8-1 2-3 3-6-2z"/></svg>
+          </div>
+        </div>
+      </div>
+
+      <h1 class="text-3xl font-black text-text-main mb-8 leading-tight">How are you right now?</h1>
+
+      <div class="mb-8">
+        <p class="text-xs font-800 uppercase tracking-wider text-text-soft mb-4">Time available</p>
+        <div class="flex flex-wrap gap-2">
+          <button class="sel-pill time-pill" data-val="5min"  onclick="selectTime(this)">5 min</button>
+          <button class="sel-pill time-pill" data-val="15min" onclick="selectTime(this)">15 min</button>
+          <button class="sel-pill time-pill" data-val="30min" onclick="selectTime(this)">30 min</button>
+          <button class="sel-pill time-pill" data-val="1hr"   onclick="selectTime(this)">1 hour</button>
+          <button class="sel-pill time-pill" data-val="2hr"   onclick="selectTime(this)">2+ hours</button>
+        </div>
+      </div>
+
+      <div class="mb-8">
+        <p class="text-xs font-800 uppercase tracking-wider text-text-soft mb-4">Current energy</p>
+        <div class="flex flex-wrap gap-2">
+          <button class="sel-pill mood-pill" data-val="foggy"   onclick="selectMood(this)">Low energy</button>
+          <button class="sel-pill mood-pill" data-val="okay"    onclick="selectMood(this)">Moderate</button>
+          <button class="sel-pill mood-pill" data-val="focused" onclick="selectMood(this)">Locked in</button>
+        </div>
+      </div>
+
+      <button onclick="showScreen('setup')" class="text-xs text-text-soft font-700 underline hover:text-text-main transition-colors">
+        Edit my goals
+      </button>
+    </div>
+  </main>
+
+  <div class="fixed bottom-0 left-0 right-0 bg-white border-t-2 border-border-col px-6 py-5">
+    <div class="max-w-lg mx-auto">
+      <button id="home-cta" onclick="getNextAction()" disabled
+        class="btn-press w-full bg-primary text-white font-900 text-lg py-4 rounded-2xl shadow-btn opacity-40 cursor-not-allowed transition-opacity">
+        Tell me what to do
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════
+     SCREEN: RESULT
+════════════════════════════════ -->
+<div class="screen" id="screen-result">
+  <div class="px-6 pt-6 pb-2 shrink-0">
+    <div class="max-w-lg mx-auto flex items-center gap-3">
+      <button onclick="showScreen('home')" class="text-text-soft hover:text-text-main transition-colors">
+        <svg width="22" height="22" fill="none" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="flex-1 bg-neutral rounded-full h-4 overflow-hidden">
+        <div class="progress-bar-fill bg-primary h-4 rounded-full" style="width:100%"></div>
+      </div>
+    </div>
+  </div>
+
+  <main class="flex-1 overflow-y-auto px-6 pb-48">
+    <div class="max-w-lg mx-auto fade-up pt-8">
+      <p class="text-xs font-800 uppercase tracking-wider text-text-soft mb-6">Your next action</p>
+
+      <div class="action-card mb-5">
+        <div class="inline-block px-3 py-1.5 bg-primary-light rounded-xl mb-5">
+          <span class="text-xs font-800 uppercase tracking-wider text-primary-dark" id="result-goal-name">Goal</span>
+        </div>
+        <h2 class="text-2xl font-900 text-text-main leading-snug mb-6" id="result-action">Action goes here</h2>
+        <div class="pt-5 border-t-2 border-border-col">
+          <p class="text-text-soft font-600 text-sm leading-relaxed" id="result-why">Why this matters.</p>
+        </div>
+      </div>
+
+      <div class="flex gap-2">
+        <div class="px-3 py-1.5 rounded-xl border-2 border-border-col text-xs font-700 text-text-soft" id="result-time-chip">15 min</div>
+        <div class="px-3 py-1.5 rounded-xl border-2 border-border-col text-xs font-700 text-text-soft" id="result-mood-chip">Moderate</div>
+      </div>
+    </div>
+  </main>
+
+  <div class="fixed bottom-0 left-0 right-0 bg-white border-t-2 border-border-col px-6 py-5">
+    <div class="max-w-lg mx-auto space-y-3">
+      <button onclick="markDone()" class="btn-press w-full bg-primary text-white font-900 text-lg py-4 rounded-2xl shadow-btn hover:bg-primary-dark transition-colors">
+        Done
+      </button>
+      <div class="flex gap-3">
+        <button onclick="skipAction()" class="btn-press flex-1 bg-neutral text-text-main font-800 py-3.5 rounded-2xl shadow-btn-gray border-2 border-border-col hover:bg-gray-100 transition-colors text-sm">
+          Skip
+        </button>
+        <button onclick="easierAction()" class="btn-press flex-1 bg-neutral text-text-main font-800 py-3.5 rounded-2xl shadow-btn-gray border-2 border-border-col hover:bg-gray-100 transition-colors text-sm">
+          Make it easier
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════
+     SCREEN: DONE
+════════════════════════════════ -->
+<div class="screen" id="screen-done">
+  <main class="flex-1 overflow-y-auto px-6 pb-48">
+    <div class="max-w-lg mx-auto fade-up pt-16 text-center">
+      <div class="inline-flex items-center justify-center w-24 h-24 rounded-3xl bg-primary-light mb-8">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+          <path d="M20 6L9 17l-5-5" stroke="#58CC02" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+
+      <h1 class="text-4xl font-black text-text-main mb-3" id="done-headline">Done.</h1>
+      <p class="text-text-soft font-600 text-base mb-10 max-w-xs mx-auto">One less thing between you and where you want to be.</p>
+
+      <div id="milestone-banner" class="hidden mb-8 p-5 rounded-2xl border-2 border-warning bg-yellow-50 text-left">
+        <p class="font-900 text-base text-text-main" id="milestone-text">Milestone reached</p>
+      </div>
+
+      <div class="border-2 border-border-col rounded-2xl p-6 mb-4 text-left" style="box-shadow:0 2px 0 0 #E5E5E5;">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-xs font-800 uppercase tracking-wider text-text-soft mb-2">Current streak</p>
+            <div class="flex items-baseline gap-2">
+              <span class="text-5xl font-black text-primary" id="done-streak-num">1</span>
+              <span class="text-text-soft font-700 text-base">days</span>
+            </div>
+          </div>
+          <div class="text-right">
+            <p class="text-xs font-800 uppercase tracking-wider text-text-soft mb-2">Best</p>
+            <span class="text-3xl font-black text-text-main" id="done-best-num">1</span>
+          </div>
+        </div>
+      </div>
+
+      <button onclick="resetGoals()" class="text-xs text-text-soft font-700 underline mt-4 hover:text-text-main transition-colors">
+        Reset goals
+      </button>
+    </div>
+  </main>
+
+  <div class="fixed bottom-0 left-0 right-0 bg-white border-t-2 border-border-col px-6 py-5">
+    <div class="max-w-lg mx-auto space-y-3">
+      <button onclick="doAnother()" class="btn-press w-full bg-primary text-white font-900 text-lg py-4 rounded-2xl shadow-btn hover:bg-primary-dark transition-colors">
+        Do another
+      </button>
+      <button onclick="showScreen('home')" class="btn-press w-full bg-neutral text-text-main font-800 text-base py-4 rounded-2xl shadow-btn-gray border-2 border-border-col hover:bg-gray-100 transition-colors">
+        I'm done for now
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="toast">Message</div>
+
+<!-- ════════════════════════════════
+     FIREBASE
+════════════════════════════════ -->
+<script type="module">
+import { initializeApp }                          from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getAuth, GoogleAuthProvider,
+         signInWithPopup, signOut,
+         onAuthStateChanged }                     from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+// ── FIREBASE CONFIG (auth only — no secrets here) ──
+const firebaseConfig = {
+  apiKey:            "AIzaSyBt_GoNASHzAqncjXiJYGLW24jPF4HMwFo",
+  authDomain:        "what-s-next-6b11c.firebaseapp.com",
+  projectId:         "what-s-next-6b11c",
+  storageBucket:     "what-s-next-6b11c.firebasestorage.app",
+  messagingSenderId: "272205917363",
+  appId:             "1:272205917363:web:341255d42e7113050654c6",
+};
+
+// ── BACKEND API URL — change this to your Railway URL when deployed ──
+const API_URL = 'http://localhost:3000';
+
+// ── API HELPER — attaches auth token to every request ──
+async function api(path, options = {}) {
+  const token = await auth.currentUser?.getIdToken();
+  const res = await fetch(API_URL + path, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+      ...options.headers,
+    },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Request failed');
+  }
+  return res.json();
+}
+
+const app      = initializeApp(firebaseConfig);
+const auth     = getAuth(app);
+const provider = new GoogleAuthProvider();
+
+// ─────────────────────────────────────────
+// ACTION BANK
+// ─────────────────────────────────────────
+const ACTIONS = {
+  'Launch a side project': {
+    '5min':  { action:'Write one sentence describing exactly what your project does.', why:'Clarity on what you\'re building is step one. Everything else follows from this.' },
+    '15min': { action:'List 3 specific things your product does for someone.', why:'Features become real when you can name them. This grounds your idea in reality.' },
+    '30min': { action:'Write your landing page headline and one subheading.', why:'If you can\'t describe your project in a headline, it\'s not ready. This forces clarity.' },
+    '1hr':   { action:'Sketch or build the very first screen of your product.', why:'Moving from idea to something visual is the hardest step. Do it now.' },
+    '2hr':   { action:'Write and publish one piece of content about your idea.', why:'Shipping in public creates accountability. Even one post makes your project real.' },
+    easier:  { action:'Open a new doc and type your project name at the top.', why:'Starting is the hardest part. A blank doc with a name is already progress.' }
+  },
+  'Get healthier': {
+    '5min':  { action:'Do 10 pushups right now, before you think about it.', why:'You have the time. 10 pushups take 40 seconds.' },
+    '15min': { action:'Walk for 15 minutes — phone in your pocket, not in your hand.', why:'Movement resets your brain. This walk matters more than you think.' },
+    '30min': { action:'Cook one real meal instead of ordering or skipping.', why:'One good meal shifts your relationship with food more than any plan.' },
+    '1hr':   { action:'Do a full workout — even if it\'s just bodyweight moves.', why:'An hour of movement today beats a plan starting next week.' },
+    '2hr':   { action:'Meal prep for the next 3 days.', why:'When healthy food is ready, you eat healthy food. Remove the friction.' },
+    easier:  { action:'Stand up and stretch for 60 seconds.', why:'Micro-actions build identity. You\'re the kind of person who moves.' }
+  },
+  'Learn something new': {
+    '5min':  { action:'Read one article on your topic — no saving it for later.', why:'Saved articles don\'t teach you anything. Read it now.' },
+    '15min': { action:'Watch one focused tutorial — no multitasking.', why:'15 minutes of full attention beats an hour of half-watching.' },
+    '30min': { action:'Do one practice exercise from what you\'ve been learning.', why:'Reading teaches facts. Doing teaches skills. Do the thing.' },
+    '1hr':   { action:'Complete one full lesson or chapter without stopping.', why:'Completion creates momentum. Finish the whole thing in one sitting.' },
+    '2hr':   { action:'Build something tiny using what you\'ve learned.', why:'The smallest project proves more than hours of consuming content.' },
+    easier:  { action:'Write one thing you already know about this topic.', why:'You know more than you think. Start with what you have.' }
+  },
+  'Clear mental clutter': {
+    '5min':  { action:'Write 3 things on your mind right now, then close the tab.', why:'Your brain is not storage. Offload the 3 loudest thoughts.' },
+    '15min': { action:'Brain dump everything — write it all, sort nothing.', why:'A full brain dump takes 10 minutes and gives you days of clarity.' },
+    '30min': { action:'Write your top 3 priorities for the week on paper.', why:'Three priorities on paper changes how you work. Most people never do this.' },
+    '1hr':   { action:'Clean and organize your workspace completely.', why:'Physical clutter creates mental clutter. An hour of cleaning buys days of focus.' },
+    '2hr':   { action:'Do a full weekly review — what happened, what\'s next.', why:'A weekly review closes open loops. Without it, things follow you everywhere.' },
+    easier:  { action:'Write down one thing that\'s been bothering you.', why:'Naming what\'s bothering you removes half its power.' }
+  },
+  'Grow professionally': {
+    '5min':  { action:'Send one message to someone you\'ve been meaning to reach.', why:'Most career growth comes from people, not plans. Send the message.' },
+    '15min': { action:'Update one section of your resume or portfolio.', why:'Your portfolio is always one opportunity away from mattering.' },
+    '30min': { action:'Write a short post sharing one thing you know.', why:'Teaching is the fastest way to build credibility.' },
+    '1hr':   { action:'Apply to one job or send one client pitch.', why:'One application beats zero. Do it now while you have time.' },
+    '2hr':   { action:'Build or update your personal website or LinkedIn profile.', why:'Your online presence works for you while you sleep.' },
+    easier:  { action:'Open LinkedIn and spend 5 minutes reading.', why:'Staying visible in your field starts with staying informed.' }
+  }
+};
+
+const MILESTONES = {
+  3:  'Three days in a row. You are building something.',
+  7:  'One full week. This is real.',
+  14: 'Two weeks. You are already different.',
+  30: '30 days. This is who you are now.',
+  60: '60 days. Most people stop. You did not.',
+  100:'100 days. You do not need this app anymore.'
+};
+
+const TIME_LABELS = { '5min':'5 min','15min':'15 min','30min':'30 min','1hr':'1 hour','2hr':'2+ hours' };
+const MOOD_LABELS = { foggy:'Low energy', okay:'Moderate', focused:'Locked in' };
+const TIME_ORDER  = ['5min','15min','30min','1hr','2hr'];
+
+// ─────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────
+let currentUser = null;
+let state   = { goals:[], selectedTime:null, selectedMood:null, currentAction:null, currentGoal:null, goalIndex:0 };
+let streak  = { current:0, longest:0, lastDate:null };
+let skipped = new Set();
+
+// ─────────────────────────────────────────
+// AUTH
+// ─────────────────────────────────────────
+onAuthStateChanged(auth, async (user) => {
+  if (user) {
+    currentUser = user;
+    await loadUserData();
+  } else {
+    currentUser = null;
+    hideLoading();
+    showScreen('login');
+  }
+});
+
+window.signInWithGoogle = async function() {
+  try {
+    document.getElementById('login-error').classList.add('hidden');
+    await signInWithPopup(auth, provider);
+    // onAuthStateChanged handles the rest
+  } catch (e) {
+    const err = document.getElementById('login-error');
+    err.textContent = 'Sign-in failed. Please try again.';
+    err.classList.remove('hidden');
+  }
+};
+
+window.handleLogout = async function() {
+  await signOut(auth);
+  state   = { goals:[], selectedTime:null, selectedMood:null, currentAction:null, currentGoal:null, goalIndex:0 };
+  streak  = { current:0, longest:0, lastDate:null };
+  skipped = new Set();
+};
+
+// ─────────────────────────────────────────
+// FIRESTORE HELPERS
+// ─────────────────────────────────────────
+async function loadUserData() {
+  try {
+    const [goalsRes, streakRes] = await Promise.all([
+      api('/api/goals'),
+      api('/api/streak'),
+    ]);
+
+    state.goals = goalsRes.goals.map(g => g.title);
+    streak = {
+      current:  streakRes.current  || 0,
+      longest:  streakRes.longest  || 0,
+      lastDate: streakRes.lastDate || null,
+    };
+
+    updateNavStreak();
+    hideLoading();
+
+    const hour  = new Date().getHours();
+    const greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+    document.getElementById('home-greeting').textContent = greet;
+    const name = currentUser.displayName ? currentUser.displayName.split(' ')[0] : 'there';
+    document.getElementById('home-username').textContent = 'Hey, ' + name;
+
+    if (state.goals.length > 0) { showScreen('home'); renderHomeStreak(); }
+    else showScreen('setup');
+
+  } catch (e) {
+    hideLoading();
+    showToast('Error loading data — ' + e.message);
+    showScreen('login');
+  }
+}
+
+async function saveGoalsToBackend() {
+  try {
+    await api('/api/goals', {
+      method: 'POST',
+      body: JSON.stringify({ goals: state.goals }),
+    });
+  } catch (e) { showToast('Error saving goals: ' + e.message); throw e; }
+}
+
+async function recordAction() {
+  const today = new Date().toDateString();
+  if (streak.lastDate === today) return;
+  try {
+    const res = await api('/api/streak/action', {
+      method: 'POST',
+      body: JSON.stringify({
+        goal:   state.currentGoal   || '',
+        action: state.currentAction?.action || '',
+      }),
+    });
+    streak.current  = res.current;
+    streak.longest  = res.longest;
+    streak.lastDate = res.lastDate;
+    updateNavStreak();
+  } catch (e) { showToast('Error saving streak: ' + e.message); }
+}
+
+// ─────────────────────────────────────────
+// STREAK
+// ─────────────────────────────────────────
+function updateNavStreak() {
+  const el = document.getElementById('nav-streak');
+  if (streak.current > 0) {
+    el.classList.remove('hidden');
+    document.getElementById('nav-streak-num').textContent = streak.current + 'd';
+  } else el.classList.add('hidden');
+}
+
+async function recordAction() {
+  const today = new Date().toDateString();
+  if (streak.lastDate === today) return;
+  const yesterday = new Date(); yesterday.setDate(yesterday.getDate()-1);
+  if (streak.lastDate === yesterday.toDateString()) streak.current++;
+  else streak.current = 1;
+  if (streak.current > streak.longest) streak.longest = streak.current;
+  streak.lastDate = today;
+  updateNavStreak();
+  await saveStreakToFirestore();
+}
+
+function renderHomeStreak() {
+  const banner = document.getElementById('streak-banner');
+  if (streak.current > 0) {
+    banner.classList.remove('hidden');
+    document.getElementById('streak-banner-num').textContent = streak.current + ' day streak';
+    document.getElementById('streak-banner-sub').textContent =
+      streak.lastDate === new Date().toDateString() ? 'Already acted today — going again?' : 'Keep it going today';
+  }
+}
+
+// ─────────────────────────────────────────
+// SETUP
+// ─────────────────────────────────────────
+window.addGoal = function() {
+  const input = document.getElementById('goal-input');
+  const val = input.value.trim();
+  if (!val) return;
+  if (state.goals.length >= 5) { showToast('Max 5 goals'); return; }
+  if (state.goals.includes(val)) { showToast('Already added'); return; }
+  state.goals.push(val); input.value = '';
+  renderGoalsList(); checkSetupCta();
+};
+
+window.addPreset = function(el, goal) {
+  if (state.goals.length >= 5) { showToast('Max 5 goals'); return; }
+  if (state.goals.includes(goal)) { showToast('Already added'); return; }
+  state.goals.push(goal); el.classList.add('active');
+  renderGoalsList(); checkSetupCta();
+};
+
+window.removeGoal = function(idx) {
+  state.goals.splice(idx,1); renderGoalsList(); checkSetupCta();
+};
+
+function renderGoalsList() {
+  const list  = document.getElementById('goals-list');
+  const empty = document.getElementById('goals-empty');
+  document.getElementById('goal-count-label').textContent = state.goals.length + ' / 5 added';
+  if (!state.goals.length) { empty.classList.remove('hidden'); list.classList.add('hidden'); list.innerHTML=''; return; }
+  empty.classList.add('hidden'); list.classList.remove('hidden'); list.innerHTML='';
+  state.goals.forEach((g,i) => {
+    const div = document.createElement('div');
+    div.className = 'goal-item';
+    div.innerHTML = `
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-xl bg-primary-light flex items-center justify-center text-primary-dark text-xs font-900 shrink-0">${i+1}</div>
+        <span class="font-700 text-text-main text-sm">${g}</span>
+      </div>
+      <button onclick="removeGoal(${i})" class="w-8 h-8 rounded-xl flex items-center justify-center text-text-soft hover:bg-red-50 hover:text-danger transition-colors ml-2 shrink-0">
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+      </button>`;
+    list.appendChild(div);
+  });
+}
+
+function checkSetupCta() {
+  const btn = document.getElementById('setup-cta');
+  if (state.goals.length > 0) { btn.disabled=false; btn.classList.remove('opacity-40','cursor-not-allowed'); }
+  else { btn.disabled=true; btn.classList.add('opacity-40','cursor-not-allowed'); }
+}
+
+window.finishSetup = async function() {
+  if (!state.goals.length) return;
+  try {
+    await saveGoalsToBackend();
+    showScreen('home'); renderHomeStreak();
+  } catch(e) { /* error already shown */ }
+};
+
+// ─────────────────────────────────────────
+// HOME
+// ─────────────────────────────────────────
+window.selectTime = function(el) {
+  document.querySelectorAll('.time-pill').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active'); state.selectedTime=el.dataset.val; checkHomeCta();
+};
+
+window.selectMood = function(el) {
+  document.querySelectorAll('.mood-pill').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active'); state.selectedMood=el.dataset.val; checkHomeCta();
+};
+
+function checkHomeCta() {
+  const btn = document.getElementById('home-cta');
+  if (state.selectedTime && state.selectedMood) { btn.disabled=false; btn.classList.remove('opacity-40','cursor-not-allowed'); }
+}
+
+// ─────────────────────────────────────────
+// ACTION LOGIC
+// ─────────────────────────────────────────
+window.getNextAction = function() {
+  const goals = state.goals;
+  if (!goals.length) return;
+  for (let a=0; a<goals.length*2; a++) {
+    const goal = goals[state.goalIndex % goals.length];
+    state.goalIndex++;
+    if (ACTIONS[goal]) {
+      let bucket = state.selectedTime;
+      if (state.selectedMood==='foggy')   bucket = TIME_ORDER[Math.max(0,TIME_ORDER.indexOf(bucket)-1)];
+      if (state.selectedMood==='focused') bucket = TIME_ORDER[Math.min(TIME_ORDER.length-1,TIME_ORDER.indexOf(bucket)+1)];
+      const key = goal+'_'+bucket;
+      if (!skipped.has(key)) {
+        state.currentGoal=goal;
+        state.currentAction={...ACTIONS[goal][bucket],key,bucket,goal};
+        renderResult(state.currentAction,goal); showScreen('result'); return;
+      }
+    } else {
+      const key=goal+'_generic';
+      if (!skipped.has(key)) {
+        const data={action:`Spend ${TIME_LABELS[state.selectedTime]} working on: "${goal}".`,why:'You have time and a goal. That is enough.'};
+        state.currentGoal=goal; state.currentAction={...data,key,goal};
+        renderResult(data,goal); showScreen('result'); return;
+      }
+    }
+  }
+  skipped.clear(); showToast('All actions done — resetting'); setTimeout(window.getNextAction,1200);
+};
+
+function renderResult(data,goal) {
+  document.getElementById('result-goal-name').textContent = goal;
+  document.getElementById('result-action').textContent    = data.action;
+  document.getElementById('result-why').textContent       = data.why;
+  document.getElementById('result-time-chip').textContent = TIME_LABELS[state.selectedTime]||'';
+  document.getElementById('result-mood-chip').textContent = MOOD_LABELS[state.selectedMood]||'';
+}
+
+window.markDone = async function() { await recordAction(); showDoneScreen(); };
+
+window.skipAction = function() {
+  if (state.currentAction) skipped.add(state.currentAction.key);
+  window.getNextAction();
+};
+
+window.easierAction = function() {
+  const goal = state.currentGoal;
+  if (ACTIONS[goal]?.easier) {
+    const key=goal+'_easier';
+    if (!skipped.has(key)) { state.currentAction={...ACTIONS[goal].easier,key,goal}; renderResult(state.currentAction,goal); return; }
+  }
+  showToast('That is already the easiest version');
+};
+
+// ─────────────────────────────────────────
+// DONE
+// ─────────────────────────────────────────
+function showDoneScreen() {
+  document.getElementById('done-streak-num').textContent = streak.current;
+  document.getElementById('done-best-num').textContent   = streak.longest;
+  const ms = MILESTONES[streak.current];
+  const banner = document.getElementById('milestone-banner');
+  if (ms) { banner.classList.remove('hidden'); document.getElementById('milestone-text').textContent = ms; }
+  else banner.classList.add('hidden');
+  const headlines = ['Done.','Action taken.','Progress made.','You showed up.','Keep going.'];
+  document.getElementById('done-headline').textContent = headlines[Math.floor(Math.random()*headlines.length)];
+  showScreen('done');
+}
+
+window.doAnother = function() {
+  state.selectedTime=null; state.selectedMood=null;
+  document.querySelectorAll('.time-pill,.mood-pill').forEach(p=>p.classList.remove('active'));
+  const btn=document.getElementById('home-cta'); btn.disabled=true; btn.classList.add('opacity-40','cursor-not-allowed');
+  showScreen('home'); renderHomeStreak();
+};
+
+window.resetGoals = async function() {
+  if (!confirm('Reset all your goals? Your streak will be kept.')) return;
+  try {
+    await api('/api/goals', { method: 'DELETE' });
+    state.goals=[]; renderGoalsList(); checkSetupCta();
+    showScreen('setup');
+  } catch(e) { showToast('Error resetting goals'); }
+};
+
+// ─────────────────────────────────────────
+// UTILS
+// ─────────────────────────────────────────
+window.showScreen = function(id) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  const el=document.getElementById('screen-'+id);
+  el.classList.add('active');
+  el.querySelectorAll('.fade-up').forEach(a=>{a.style.animation='none';a.offsetHeight;a.style.animation='';});
+  window.scrollTo({top:0});
+};
+
+function showToast(msg) {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+function hideLoading() {
+  document.getElementById('loading').style.display='none';
+}
+
+document.getElementById('goal-input').addEventListener('keydown',e=>{if(e.key==='Enter')window.addGoal();});
+</script>
+</body>
+</html>
