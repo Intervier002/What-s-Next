@@ -1,10 +1,9 @@
 const express = require('express');
 const router  = express.Router();
-const { db }  = require('../firebase');
-const verifyToken      = require('../middleware/auth');
-const { writeLimiter } = require('../middleware/rateLimit');
+const { db }  = require('./firebase');
+const verifyToken      = require('./auth');
+const { writeLimiter } = require('./rateLimit');
 
-// GET /api/streak — get streak for logged-in user
 router.get('/', verifyToken, async (req, res) => {
   try {
     const doc = await db
@@ -27,7 +26,6 @@ router.get('/', verifyToken, async (req, res) => {
   }
 });
 
-// POST /api/streak/action — record a completed action, update streak
 router.post('/action', verifyToken, writeLimiter, async (req, res) => {
   try {
     const streakRef = db
@@ -42,15 +40,12 @@ router.post('/action', verifyToken, writeLimiter, async (req, res) => {
     const today     = new Date().toDateString();
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toDateString();
 
-    // Don't double-count same day
     if (lastDate === today) {
       return res.json({ current, longest, lastDate, alreadyCounted: true });
     }
 
-    // Extend or reset streak
-    if (lastDate === yesterdayStr) {
+    if (lastDate === yesterday.toDateString()) {
       current += 1;
     } else {
       current = 1;
@@ -61,14 +56,13 @@ router.post('/action', verifyToken, writeLimiter, async (req, res) => {
 
     await streakRef.set({ current, longest, lastDate, updatedAt: new Date() });
 
-    // Also log the action
     await db
       .collection('users')
       .doc(req.user.uid)
       .collection('actionsLog')
       .add({
-        goal:        req.body.goal        || '',
-        action:      req.body.action      || '',
+        goal:        req.body.goal   || '',
+        action:      req.body.action || '',
         completedAt: new Date(),
       });
 
