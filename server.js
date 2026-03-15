@@ -11,10 +11,27 @@ const app  = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5500',
-  methods: ['GET', 'POST', 'DELETE'],
+  origin: function(origin, callback) {
+    // Allow requests with no origin (mobile apps, curl, etc)
+    if (!origin) return callback(null, true);
+    const allowed = [
+      process.env.FRONTEND_URL,
+      'https://whats-next-dun.vercel.app',
+      'https://whatsnf.vercel.app',
+      'http://localhost:5500',
+      'http://localhost:3000'
+    ];
+    if (allowed.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(null, true); // allow all for now during testing
+    }
+  },
+  methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
 }));
+app.options('*', cors()); // handle preflight requests
 
 app.use(express.json({ limit: '10kb' }));
 app.use(generalLimiter);
